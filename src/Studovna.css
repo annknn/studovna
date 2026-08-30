@@ -34,6 +34,7 @@
 .studovna .brand h1{
   font-family:'Source Serif 4', serif; font-weight:700;
   font-size:34px; margin:0; letter-spacing:-0.01em;
+  color: var(--ink);
 }
 .studovna .brand p{margin:2px 0 0; font-size:13px; color:var(--ink-soft); font-family:'IBM Plex Mono', monospace;}
 .studovna nav{display:flex; gap:6px;}
@@ -66,7 +67,7 @@
 
 /* Materials */
 .studovna .toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:10px; flex-wrap:wrap;}
-.studovna .toolbar h2{font-family:'Source Serif 4', serif; font-size:20px; margin:0; font-weight:600;}
+.studovna .toolbar h2{font-family:'Source Serif 4', serif; font-size:20px; margin:0; font-weight:600; color:var(--ink);}
 
 .studovna .subject-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(190px,1fr)); gap:14px;}
 .studovna .subject-card{
@@ -83,6 +84,113 @@
   background:none; border:none; cursor:pointer; opacity:0; transition:opacity .15s;
 }
 .studovna .subject-card:hover .del{opacity:1;}
+
+.studovna .btn.small{padding:5px 10px; font-size:12px;}
+
+.studovna .subject-detail-layout{display:flex; gap:26px; align-items:flex-start;}
+.studovna .subject-aside{
+  width:220px; flex-shrink:0; background:var(--card); border:1.5px solid var(--line);
+  border-radius:3px; padding:16px;
+}
+.studovna .subject-aside h2{font-family:'Source Serif 4', serif; font-size:19px; margin:0 0 14px; font-weight:600;}
+.studovna .aside-heading{
+  font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--ink-soft); margin:0 0 8px; font-weight:500; border-top:1px solid var(--line); padding-top:12px;
+}
+.studovna .aside-empty{font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;}
+.studovna .chapter-list{list-style:decimal; margin:0 0 10px; padding-left:20px;}
+.studovna .chapter-item{
+  display:flex; align-items:center; justify-content:space-between; gap:6px;
+  font-size:13.5px; padding:4px 0; position:relative;
+}
+.studovna .chapter-item span{word-break:break-word;}
+.studovna .chapter-item .del{
+  font-size:11px; color:var(--ink-soft); background:none; border:none; cursor:pointer;
+  opacity:0; transition:opacity .15s; flex-shrink:0;
+}
+.studovna .chapter-item:hover .del{opacity:1;}
+.studovna .chapter-add{display:flex; gap:6px; margin-top:4px;}
+.studovna .chapter-add input{
+  flex:1; min-width:0; padding:6px 8px; border:1.3px solid var(--line); border-radius:2px;
+  font-family:'IBM Plex Sans', sans-serif; font-size:13px; background:#fff; color:var(--ink);
+}
+.studovna .chapter-add input:focus{outline:2px solid var(--pine); outline-offset:1px;}
+.studovna .subject-main{flex:1; min-width:0;}
+
+/* Table builder inside the add-material form */
+.studovna .table-field-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+.studovna .table-field-header label{margin:0;}
+.studovna .table-builder{margin-top:4px;}
+.studovna .table-builder-grid{border-collapse:collapse;}
+.studovna .table-builder-grid td, .studovna .table-builder-grid th{padding:2px; border:none;}
+.studovna .table-builder-grid input{
+  width:120px; padding:6px 8px; border:1.3px solid var(--line); border-radius:2px;
+  font-family:'IBM Plex Sans', sans-serif; font-size:13px; background:#fff; color:var(--ink);
+}
+.studovna .table-builder-grid tr.header-row input{background:var(--pine-soft); font-weight:600;}
+.studovna .table-builder-grid input:focus{outline:2px solid var(--pine); outline-offset:1px;}
+.studovna .table-builder-grid .cell-del{
+  font-size:10px; color:var(--ink-soft); background:none; border:none; cursor:pointer; padding:2px 4px;
+}
+.studovna .table-builder-grid .cell-del:hover:not(:disabled){color:var(--red);}
+.studovna .table-builder-grid .cell-del:disabled{opacity:.25; cursor:not-allowed;}
+.studovna .table-builder-actions{display:flex; gap:8px; margin-top:8px;}
+
+/* Rendered table inside a material */
+.studovna .material-table{border-collapse:collapse; width:100%; margin-top:9px; font-size:13px;}
+.studovna .material-table th, .studovna .material-table td{
+  border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top;
+}
+.studovna .material-table th{
+  background:var(--pine-soft); font-family:'IBM Plex Mono', monospace; font-size:11px;
+  text-transform:uppercase; letter-spacing:.03em; color:var(--ink); font-weight:600;
+}
+.studovna .material-table td{color:var(--ink-soft);}
+
+/* Type tabs (segmented control) in the add-material form */
+.studovna .type-tabs{
+  display:flex; gap:4px; background:var(--paper-deep); border-radius:3px; padding:4px; margin-bottom:14px;
+}
+.studovna .type-tab{
+  flex:1; font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:.03em;
+  border:none; background:none; color:var(--ink-soft); padding:8px 10px; border-radius:2px; cursor:pointer;
+  transition: all .15s ease;
+}
+.studovna .type-tab:hover{color:var(--ink);}
+.studovna .type-tab.active{background:var(--card); color:var(--ink); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08);}
+
+/* Flashcard builder inside the form — the block itself IS the card being
+   created (no extra nesting), breaking out of the panel's side padding so
+   it spans the full width of the panel container. */
+.studovna .flashcard-block{
+  border:1.3px solid var(--line); border-radius:4px; background:#fff;
+  margin:0 -16px; padding:14px 16px;
+}
+.studovna .flashcard-block .field:last-child{margin-bottom:0;}
+
+/* Rendered flip card inside a material.
+   The back side sits in normal flow, so its content height defines the
+   card's height. The front side is absolutely positioned on top of it and
+   simply fades out on flip — this way the card never needs a fixed height
+   and never clips the (usually longer) explanation on the back. */
+.studovna .flashcard-grid{display:flex; flex-direction:column; gap:10px; margin-top:10px; width:100%;}
+.studovna .flashcard{position:relative; width:100%; cursor:pointer;}
+.studovna .flashcard-back{
+  border-radius:4px; border:1.3px solid var(--line); background:var(--pine-soft); color:var(--ink);
+  padding:14px; font-size:13.5px; line-height:1.55; white-space:pre-wrap;
+}
+.studovna .flashcard-front{
+  position:absolute; inset:0; border-radius:4px; border:1.3px solid var(--line); background:var(--card);
+  padding:14px; display:flex; align-items:center; justify-content:center; text-align:center;
+  transition:opacity .2s ease; overflow:hidden;
+}
+.studovna .flashcard-front strong{font-family:'Source Serif 4', serif; font-size:16px; font-weight:600;}
+.studovna .flashcard.flipped .flashcard-front{opacity:0; pointer-events:none;}
+
+@media (max-width:720px){
+  .studovna .subject-detail-layout{flex-direction:column;}
+  .studovna .subject-aside{width:100%;}
+}
 
 .studovna .back-link{
   font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft);

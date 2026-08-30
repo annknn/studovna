@@ -1,7 +1,19 @@
+export interface Chapter {
+  id: string;
+  title: string;
+}
+
 export interface Subject {
   id: string;
   name: string;
   color: string;
+  chapters: Chapter[];
+}
+
+export interface Flashcard {
+  id: string;
+  name: string;
+  explanation: string;
 }
 
 export interface Material {
@@ -10,6 +22,8 @@ export interface Material {
   title: string;
   content: string;
   url: string;
+  table?: string[][];
+  flashcards?: Flashcard[];
 }
 
 export interface GlossaryTerm {

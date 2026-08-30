@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { Subject, Material, GlossaryTerm, StudyHubData } from './types';
+import type { Subject, Material, GlossaryTerm, StudyHubData, Chapter, Flashcard } from './types';
 import { emptyData } from './types';
 import './Studovna.css';
 
@@ -130,7 +130,10 @@ export default function Studovna(): React.ReactElement {
   // ---------- subjects ----------
   function addSubject(name: string, color: string) {
     if (!name.trim()) return;
-    setData((d) => ({ ...d, subjects: [...d.subjects, { id: uid(), name: name.trim(), color }] }));
+    setData((d) => ({
+      ...d,
+      subjects: [...d.subjects, { id: uid(), name: name.trim(), color, chapters: [] }],
+    }));
     setShowSubjectForm(false);
   }
   function deleteSubject(id: string) {
@@ -142,14 +145,41 @@ export default function Studovna(): React.ReactElement {
     if (activeSubjectId === id) setActiveSubjectId(null);
   }
 
+  // ---------- chapters ----------
+  function addChapter(subjectId: string, title: string) {
+    if (!title.trim()) return;
+    setData((d) => ({
+      ...d,
+      subjects: d.subjects.map((s) =>
+        s.id === subjectId ? { ...s, chapters: [...s.chapters, { id: uid(), title: title.trim() }] } : s
+      ),
+    }));
+  }
+  function deleteChapter(subjectId: string, chapterId: string) {
+    setData((d) => ({
+      ...d,
+      subjects: d.subjects.map((s) =>
+        s.id === subjectId ? { ...s, chapters: s.chapters.filter((c) => c.id !== chapterId) } : s
+      ),
+    }));
+  }
+
   // ---------- materials ----------
-  function addMaterial(title: string, content: string, url: string) {
+  function addMaterial(title: string, content: string, url: string, table?: string[][], flashcards?: Flashcard[]) {
     if (!title.trim() || !activeSubjectId) return;
     setData((d) => ({
       ...d,
       materials: [
         ...d.materials,
-        { id: uid(), subjectId: activeSubjectId, title: title.trim(), content: content.trim(), url: url.trim() },
+        {
+          id: uid(),
+          subjectId: activeSubjectId,
+          title: title.trim(),
+          content: content.trim(),
+          url: url.trim(),
+          ...(table && table.length > 0 ? { table } : {}),
+          ...(flashcards && flashcards.length > 0 ? { flashcards } : {}),
+        },
       ],
     }));
     setShowMaterialForm(false);
@@ -200,6 +230,8 @@ export default function Studovna(): React.ReactElement {
               onBack={() => setActiveSubjectId(null)}
               onAdd={addMaterial}
               onDelete={deleteMaterial}
+              onAddChapter={(title) => addChapter(activeSubjectId, title)}
+              onDeleteChapter={(chapterId) => deleteChapter(activeSubjectId, chapterId)}
             />
           ) : (
             <SubjectsView
@@ -334,6 +366,10 @@ function SubjectsView(props: {
 
 /* ============ Materials: single subject detail ============ */
 
+type MaterialTab = 'notes' | 'table' | 'flashcards';
+
+const emptyTable: string[][] = [['', '']];
+
 function SubjectDetail(props: {
   subject: Subject;
   materials: Material[];
@@ -341,19 +377,84 @@ function SubjectDetail(props: {
   showForm: boolean;
   onToggleForm: () => void;
   onBack: () => void;
-  onAdd: (title: string, content: string, url: string) => void;
+  onAdd: (title: string, content: string, url: string, table?: string[][], flashcards?: Flashcard[]) => void;
   onDelete: (id: string) => void;
+  onAddChapter: (title: string) => void;
+  onDeleteChapter: (chapterId: string) => void;
 }) {
-  const { subject, materials, glossary, showForm, onToggleForm, onBack, onAdd, onDelete } = props;
+  const { subject, materials, glossary, showForm, onToggleForm, onBack, onAdd, onDelete, onAddChapter, onDeleteChapter } =
+    props;
+
+  const [activeTab, setActiveTab] = useState<MaterialTab>('notes');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [url, setUrl] = useState('');
+  const [chapterTitle, setChapterTitle] = useState('');
+  const [tableData, setTableData] = useState<string[][]>(emptyTable);
+  const [cardName, setCardName] = useState('');
+  const [cardExplanation, setCardExplanation] = useState('');
 
-  function submit() {
-    onAdd(title, content, url);
+  function resetForm() {
+    setActiveTab('notes');
     setTitle('');
     setContent('');
     setUrl('');
+    setTableData(emptyTable);
+    setCardName('');
+    setCardExplanation('');
+  }
+
+  function handleToggle() {
+    if (showForm) resetForm();
+    onToggleForm();
+  }
+
+  function submit() {
+    let finalTitle = title.trim();
+    let finalContent = '';
+    let finalUrl = '';
+    let finalTable: string[][] | undefined;
+    let finalFlashcards: Flashcard[] | undefined;
+
+    if (activeTab === 'notes') {
+      if (!finalTitle) return;
+      finalContent = content;
+      finalUrl = url;
+    } else if (activeTab === 'table') {
+      if (!finalTitle) return;
+      if (tableData.some((row) => row.some((cell) => cell.trim() !== ''))) finalTable = tableData;
+    } else if (activeTab === 'flashcards') {
+      const name = cardName.trim();
+      const explanation = cardExplanation.trim();
+      if (!name) return;
+      finalFlashcards = [{ id: uid(), name, explanation }];
+      // there is no separate Název field for flashcards — use the card's own name
+      finalTitle = name;
+    }
+
+    onAdd(finalTitle, finalContent, finalUrl, finalTable, finalFlashcards);
+    resetForm();
+  }
+
+  function addTableColumn() {
+    setTableData((prev) => prev.map((row) => [...row, '']));
+  }
+  function addTableRow() {
+    setTableData((prev) => [...prev, Array(prev[0]?.length || 1).fill('')]);
+  }
+  function removeTableColumn(ci: number) {
+    setTableData((prev) => prev.map((row) => row.filter((_, i) => i !== ci)));
+  }
+  function removeTableRow(ri: number) {
+    setTableData((prev) => prev.filter((_, i) => i !== ri));
+  }
+  function updateTableCell(ri: number, ci: number, value: string) {
+    setTableData((prev) => prev.map((row, r) => (r === ri ? row.map((c, i) => (i === ci ? value : c)) : row)));
+  }
+
+  function submitChapter() {
+    onAddChapter(chapterTitle);
+    setChapterTitle('');
   }
 
   return (
@@ -361,67 +462,276 @@ function SubjectDetail(props: {
       <button className="back-link" onClick={onBack}>
         ← Zpět na předměty
       </button>
-      <div className="toolbar">
-        <h2 style={{ color: subject.color }}>{subject.name}</h2>
-        <button className="btn primary" onClick={onToggleForm}>
-          + Přidat materiál
-        </button>
-      </div>
 
-      {showForm && (
-        <div className="panel">
-          <h3>Nový materiál</h3>
-          <div className="field">
-            <label>Název</label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="např. Poznámky z přednášky 4" autoFocus />
-          </div>
-          <div className="field">
-            <label>Poznámka / obsah</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Shrnutí, co materiál obsahuje…"
+      <div className="subject-detail-layout">
+        <aside className="subject-aside">
+          <h2 style={{ color: subject.color }}>{subject.name}</h2>
+
+          <h3 className="aside-heading">Kapitoly</h3>
+          {subject.chapters.length === 0 ? (
+            <p className="aside-empty">Zatím žádné kapitoly.</p>
+          ) : (
+            <ol className="chapter-list">
+              {subject.chapters.map((c: Chapter) => (
+                <li key={c.id} className="chapter-item">
+                  <span>{c.title}</span>
+                  <button className="del" title="Smazat kapitolu" onClick={() => onDeleteChapter(c.id)}>
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+          <div className="chapter-add">
+            <input
+              value={chapterTitle}
+              onChange={(e) => setChapterTitle(e.target.value)}
+              placeholder="Nová kapitola…"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitChapter();
+              }}
             />
-          </div>
-          <div className="field">
-            <label>Odkaz (nepovinné)</label>
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
-          </div>
-          <div className="form-actions">
-            <button className="btn primary" onClick={submit}>
-              Uložit
-            </button>
-            <button className="btn ghost" onClick={onToggleForm}>
-              Zrušit
+            <button className="btn small" onClick={submitChapter}>
+              +
             </button>
           </div>
-        </div>
-      )}
+        </aside>
 
-      {materials.length === 0 && !showForm ? (
-        <div className="empty">
-          <b>Zatím prázdno</b>
-          Přidej první materiál k tomuto předmětu.
-        </div>
-      ) : (
-        materials.map((m) => (
-          <div key={m.id} className="material-item" style={{ borderLeftColor: subject.color }}>
-            <button className="del" title="Smazat" onClick={() => onDelete(m.id)}>
-              ✕
+        <div className="subject-main">
+          <div className="toolbar">
+            <h2>Materiály</h2>
+            <button className="btn primary" onClick={handleToggle}>
+              {showForm ? 'Zavřít' : '+ Přidat materiál'}
             </button>
-            <h4>{highlightGlossary(m.title, glossary)}</h4>
-            {m.content && <p>{highlightGlossary(m.content, glossary)}</p>}
-            {m.url && (
-              <div style={{ marginTop: 5 }}>
-                <a href={m.url} target="_blank" rel="noopener noreferrer">
-                  {m.url}
-                </a>
-              </div>
-            )}
           </div>
-        ))
-      )}
+
+          {showForm && (
+            <div className="panel">
+              <h3>Nový materiál</h3>
+
+              <div className="type-tabs">
+                <button
+                  type="button"
+                  className={`type-tab ${activeTab === 'notes' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('notes')}
+                >
+                  Poznámky
+                </button>
+                <button
+                  type="button"
+                  className={`type-tab ${activeTab === 'table' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('table')}
+                >
+                  Tabulka
+                </button>
+                <button
+                  type="button"
+                  className={`type-tab ${activeTab === 'flashcards' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('flashcards')}
+                >
+                  Kartičky
+                </button>
+              </div>
+
+              {activeTab === 'notes' && (
+                <>
+                  <div className="field">
+                    <label>Název</label>
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="např. Poznámky z přednášky 4"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Poznámka / obsah</label>
+                    <textarea
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      placeholder="Shrnutí, co materiál obsahuje…"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Odkaz (nepovinné)</label>
+                    <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'table' && (
+                <>
+                  <div className="field">
+                    <label>Název</label>
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="např. Přehled reakcí"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Tabulka</label>
+                    <div className="table-builder">
+                      <table className="table-builder-grid">
+                        <thead>
+                          <tr>
+                            {tableData[0]?.map((_, ci) => (
+                              <th key={ci}>
+                                <button
+                                  type="button"
+                                  className="cell-del"
+                                  title="Smazat sloupec"
+                                  disabled={tableData[0].length <= 1}
+                                  onClick={() => removeTableColumn(ci)}
+                                >
+                                  ✕
+                                </button>
+                              </th>
+                            ))}
+                            <th />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tableData.map((row, ri) => (
+                            <tr key={ri} className={ri === 0 ? 'header-row' : ''}>
+                              {row.map((cell, ci) => (
+                                <td key={ci}>
+                                  <input
+                                    value={cell}
+                                    onChange={(e) => updateTableCell(ri, ci, e.target.value)}
+                                    placeholder={ri === 0 ? `Sloupec ${ci + 1}` : ''}
+                                  />
+                                </td>
+                              ))}
+                              <td>
+                                <button
+                                  type="button"
+                                  className="cell-del"
+                                  title="Smazat řádek"
+                                  disabled={tableData.length <= 1}
+                                  onClick={() => removeTableRow(ri)}
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="table-builder-actions">
+                        <button className="btn small" type="button" onClick={addTableColumn}>
+                          + Sloupec
+                        </button>
+                        <button className="btn small" type="button" onClick={addTableRow}>
+                          + Řádek
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'flashcards' && (
+                <div className="flashcard-block">
+                  <div className="field">
+                    <label>Název</label>
+                    <input
+                      value={cardName}
+                      onChange={(e) => setCardName(e.target.value)}
+                      placeholder="Název kartičky"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Zadní strana (vysvětlivka)</label>
+                    <textarea
+                      value={cardExplanation}
+                      onChange={(e) => setCardExplanation(e.target.value)}
+                      placeholder="Co pojem znamená…"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="form-actions">
+                <button className="btn primary" onClick={submit}>
+                  Uložit
+                </button>
+                <button className="btn ghost" onClick={handleToggle}>
+                  Zrušit
+                </button>
+              </div>
+            </div>
+          )}
+
+          {materials.length === 0 && !showForm ? (
+            <div className="empty">
+              <b>Zatím prázdno</b>
+              Přidej první materiál k tomuto předmětu.
+            </div>
+          ) : (
+            materials.map((m) => (
+              <div key={m.id} className="material-item" style={{ borderLeftColor: subject.color }}>
+                <button className="del" title="Smazat" onClick={() => onDelete(m.id)}>
+                  ✕
+                </button>
+                <h4>{highlightGlossary(m.title, glossary)}</h4>
+                {m.content && <p>{highlightGlossary(m.content, glossary)}</p>}
+                {m.table && m.table.length > 0 && (
+                  <table className="material-table">
+                    <thead>
+                      <tr>
+                        {m.table[0].map((cell, ci) => (
+                          <th key={ci}>{highlightGlossary(cell, glossary)}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {m.table.slice(1).map((row, ri) => (
+                        <tr key={ri}>
+                          {row.map((cell, ci) => (
+                            <td key={ci}>{highlightGlossary(cell, glossary)}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {m.flashcards && m.flashcards.length > 0 && (
+                  <div className="flashcard-grid">
+                    {m.flashcards.map((c) => (
+                      <FlashcardView key={c.id} card={c} glossary={glossary} />
+                    ))}
+                  </div>
+                )}
+                {m.url && (
+                  <div style={{ marginTop: 5 }}>
+                    <a href={m.url} target="_blank" rel="noopener noreferrer">
+                      {m.url}
+                    </a>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </>
+  );
+}
+
+function FlashcardView(props: { card: Flashcard; glossary: GlossaryTerm[] }) {
+  const { card, glossary } = props;
+  const [flipped, setFlipped] = useState(false);
+
+  return (
+    <div className={`flashcard ${flipped ? 'flipped' : ''}`} onClick={() => setFlipped((f) => !f)} title="Klikni pro otočení">
+      <div className="flashcard-back">{highlightGlossary(card.explanation, glossary)}</div>
+      <div className="flashcard-front">
+        <strong>{highlightGlossary(card.name, glossary)}</strong>
+      </div>
+    </div>
   );
 }
 
